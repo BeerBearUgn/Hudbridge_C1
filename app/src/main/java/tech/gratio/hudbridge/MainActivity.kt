@@ -58,6 +58,8 @@ class MainActivity : Activity() {
             setOnCheckedChangeListener { _, c -> prefs.edit().putBoolean(Prefs.ALL_APPS, c).apply() }
         })
 
+        button("Снимок активных уведомлений") { NavListenerService.snapshot() }
+
         header("2. Bluetooth HUD")
         button("Сканировать BLE (15 с)") { withBlePerms { devices.removeAllViews(); ble.startScan() } }
         devices = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -68,6 +70,17 @@ class MainActivity : Activity() {
                 isAllCaps = false
                 setOnClickListener { ble.connect(d) }
             })
+        }
+        val macEdit = EditText(this).apply {
+            hint = "MAC HUD, напр. FF:24:03:25:0A:1D"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setText(prefs.getString("mac", ""))
+        }
+        col.addView(macEdit)
+        button("Подключиться по MAC") {
+            val mac = macEdit.text.toString()
+            prefs.edit().putString("mac", mac).apply()
+            withBlePerms { ble.connectMac(mac) }
         }
         button("Отключиться") { ble.disconnect() }
 
