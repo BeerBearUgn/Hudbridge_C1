@@ -45,14 +45,42 @@ class BleExplorer(private val ctx: Context) {
                 .put("rssi", r.rssi).put("adv", adv))
             main.post { onDeviceFound?.invoke(d, name, r.rssi) }
         }
-        override fun onScanFailed(errorCode: Int) = LogStore.ui("Скан не удался: $errorCode")
+        override fun onScanFailed(errorCode: Int) {
+            val hint = when (errorCode) {
+                1 -> "скан уже запущен, подождите 15 секунд"
+                2 -> "система не смогла запустить скан, выключите и включите Bluetooth"
+                else -> "код $errorCode"
+            }
+            LogStore.ui("Скан не удался: $hint")
+            stopScan()
+        }
     }
 
     fun startScan() {
         seen.clear()
-        adapter.bluetoothLeScanner?.startScan(scanCb) ?: LogStore.ui("Bluetooth выключен")
-        LogStore.ui("Сканирование 15 с…")
-        main.postDelayed({ stopScan() }, 15_000)
+        val scanner = adapter?.bluetoothLeScanner
+        if (scanner == null) { LogStore.ui("Bluetooth выключен"); return }
+        // Если предыдущий скан ещё жив, повторный старт даёт ошибку 1 — сначала гасим его.
+        try { scanner.stopScan(scanCb) } catch (_: Throwable) {}
+        main.postDelayed({
+            try {
+                scanner.startScan(scanCb)
+                LogStore.ui("Сканирование 15 с…")
+                main.postDelayed({ stopScan() }, 15_000)
+            } catch (t: Throwable) {
+                LogStore.ui("Скан не запустился: ${t.javaClass.simpleName}")
+            }
+        }, 500)
+    }
+
+    /** Подключение по известному адресу — когда HUD не виден в скане. */
+    fun connectMac(mac: String) {
+        val a = mac.trim().uppercase()
+        val d = try { adapter.getRemoteDevice(a) } catch (t: Throwable) {
+            LogStore.ui("Неверный MAC: $a"); return
+        }
+        LogStore.ui("Подключение по адресу $a…")
+        connect(d)
     }
 
     fun stopScan() {
