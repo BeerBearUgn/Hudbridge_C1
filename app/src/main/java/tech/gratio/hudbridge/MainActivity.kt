@@ -28,7 +28,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ble = BleExplorer(this)
+        ble = HudLink.get(this)
         val prefs = Prefs.get(this)
         val pad = (12 * resources.displayMetrics.density).toInt()
 
@@ -97,7 +97,36 @@ class MainActivity : Activity() {
         }
         charEdit.setText(prefs.getString("char", ""))
 
-        header("3. Логи")
+        header("3. Проверка команд HUD")
+        fun sendFrame(label: String, frame: ByteArray) {
+            LogStore.ui(label + " -> " + HudProtocol.hex(frame))
+            ble.writeBytes(HudProtocol.WRITE_CHAR_PREFIX, HudProtocol.wire(frame), withResp.isChecked)
+        }
+        button("Направо, 300 м") { sendFrame("направо 300", HudProtocol.nav(HudProtocol.DIR_RIGHT, 300)) }
+        button("Налево, 50 м") { sendFrame("налево 50", HudProtocol.nav(HudProtocol.DIR_LEFT, 50)) }
+        button("Прямо, 500 м") { sendFrame("прямо 500", HudProtocol.nav(HudProtocol.DIR_STRAIGHT, 500)) }
+        button("Улица TEST") { sendFrame("улица TEST", HudProtocol.roadName("TEST")) }
+        button("Остаток: 5 мин, 1200 м") { sendFrame("остаток", HudProtocol.remaining(0, 5, 1200)) }
+
+        header("4. Яндекс на HUD")
+        col.addView(CheckBox(this).apply {
+            text = "Транслировать манёвры Яндекса на HUD"
+            isChecked = prefs.getBoolean(Prefs.BRIDGE, false)
+            setOnCheckedChangeListener { _, c -> prefs.edit().putBoolean(Prefs.BRIDGE, c).apply() }
+        })
+        val thEdit = EditText(this).apply {
+            hint = "Порог, метров (по умолчанию 800)"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setText(prefs.getInt(Prefs.THRESHOLD, 800).toString())
+        }
+        col.addView(thEdit)
+        button("Сохранить порог") {
+            val v = thEdit.text.toString().toIntOrNull() ?: 800
+            prefs.edit().putInt(Prefs.THRESHOLD, v).apply()
+            LogStore.ui("Порог: " + v + " м")
+        }
+
+        header("5. Логи")
         button("Экспорт в «Загрузки/HudBridge»") {
             val where = LogStore.export(this)
             Toast.makeText(this, "Сохранено: $where", Toast.LENGTH_LONG).show()
@@ -119,7 +148,6 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         LogStore.listeners.remove(listener)
-        ble.disconnect()
         super.onDestroy()
     }
 
