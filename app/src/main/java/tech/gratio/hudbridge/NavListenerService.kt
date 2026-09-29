@@ -25,6 +25,9 @@ class NavListenerService : NotificationListenerService() {
         val all = p.getBoolean(Prefs.ALL_APPS, false)
         if (!all && sbn.packageName !in NAV_PACKAGES) return
         log(sbn, "notif", dedup = true)
+        try { NavBridge.handle(this, sbn) } catch (t: Throwable) {
+            LogStore.append(this, "error", JSONObject().put("where", "bridge").put("err", t.toString()))
+        }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
@@ -93,5 +96,7 @@ class NavListenerService : NotificationListenerService() {
 object Prefs {
     const val LOG_ON = "log_on"
     const val ALL_APPS = "all_apps"
+    const val BRIDGE = "bridge_on"
+    const val THRESHOLD = "threshold_m"
     fun get(ctx: Context) = ctx.getSharedPreferences("hud", Context.MODE_PRIVATE)
 }
