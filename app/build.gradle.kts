@@ -11,8 +11,8 @@ android {
         applicationId = "tech.gratio.hudbridge"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2-diag"
+        versionCode = 3
+        versionName = "0.3"
     }
     buildTypes {
         release { isMinifyEnabled = false }
