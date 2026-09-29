@@ -100,13 +100,20 @@ class BleExplorer(private val ctx: Context) {
         ops.clear(); busy = false
     }
 
+    val isConnected: Boolean get() = gatt?.services?.isNotEmpty() == true
+
     /** Запись hex-строки. uuid можно указать коротко (первые символы). */
     fun write(uuidPrefix: String, hexStr: String, withResponse: Boolean) {
+        val data = parseHex(hexStr) ?: return LogStore.ui("Неверный hex")
+        writeBytes(uuidPrefix, data, withResponse)
+    }
+
+    /** Запись готовых байтов. */
+    fun writeBytes(uuidPrefix: String, data: ByteArray, withResponse: Boolean) {
         val g = gatt ?: return LogStore.ui("Нет подключения")
         val ch = g.services.flatMap { it.characteristics }
             .firstOrNull { it.uuid.toString().startsWith(uuidPrefix.lowercase().trim()) }
             ?: return LogStore.ui("Характеристика $uuidPrefix не найдена")
-        val data = parseHex(hexStr) ?: return LogStore.ui("Неверный hex")
         enqueue {
             ch.writeType = if (withResponse) BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 else BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
